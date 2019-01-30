@@ -26,9 +26,9 @@ namespace WhatupTeam.Models.Entities
 
         [ForeignKey("EmployeeID")]
         public virtual Employees Employee { get; set; }
-        public int ProjectTeamID { get; set; }
+        public int TeamMemberID { get; set; }
 
-        [ForeignKey("ProjectTeamID")]
-        public virtual ProjectTeam ProjectTeam {get; set;}
+        [ForeignKey("TeamMemberID")]
+        public virtual TeamMember ProjectTeam {get; set;}
 }
 }

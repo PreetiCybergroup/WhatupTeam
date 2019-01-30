@@ -20,7 +20,7 @@ namespace WhatupTeam.Controllers.WebAPI
         // GET: api/employee
         public IQueryable<Employees> Getemployee()
         {
-            return db.Employees;
+            return db.Employees.Where(emp=>emp.IsActive == true);
         }
 
         // GET: api/Employees/5
@@ -30,7 +30,7 @@ namespace WhatupTeam.Controllers.WebAPI
             Employees employees = db.Employees.Find(id);
             if (employees == null)
             {
-                return NotFound();
+                return Content(HttpStatusCode.NotFound, string.Format("Employee with id {0} does not exist", id));
             }
 
             return Ok(employees);
@@ -44,7 +44,6 @@ namespace WhatupTeam.Controllers.WebAPI
             {
                 return BadRequest(ModelState);
             }
-
             if (id != employees.EmployeeID)
             {
                 return BadRequest();
@@ -55,20 +54,19 @@ namespace WhatupTeam.Controllers.WebAPI
             try
             {
                 db.SaveChanges();
+                return Ok(string.Format("Employee details with id {0} has been modified", id));
             }
-            catch (DbUpdateConcurrencyException)
+            catch (DbUpdateConcurrencyException exception)
             {
                 if (!EmployeeExists(id))
                 {
-                    return NotFound();
+                    return Content(HttpStatusCode.NotFound, string.Format("Company with id {0} does not exist", id));
                 }
                 else
                 {
-                    throw;
+                    return Content(HttpStatusCode.NoContent, exception.Message);
                 }
             }
-
-            return StatusCode(HttpStatusCode.NoContent); 
         }
 
         // POST: api/Employees
@@ -79,13 +77,25 @@ namespace WhatupTeam.Controllers.WebAPI
             {
                 return BadRequest(ModelState);
             }
+            try
+            { 
             if (!EmployeeExists(employee.FirstName, employee.UserName, employee.CompanyID))
             {
                 db.Employees.Add(employee);
                 db.SaveChanges();
+                return CreatedAtRoute("DefaultApi", new { id = employee.EmployeeID }, employee);
             }
+            else
+                {
+                    return Content(HttpStatusCode.NoContent, "Employee already exist");
+                }
+            }
+            catch(Exception ex)
+            {
+                return Content(HttpStatusCode.BadRequest, ex.Message);
 
-            return CreatedAtRoute("DefaultApi", new { id = employee.EmployeeID }, employee);
+            }
+            
         }
 
         // DELETE: api/employee/5
@@ -95,13 +105,21 @@ namespace WhatupTeam.Controllers.WebAPI
             Employees employee = db.Employees.Find(id);
             if (employee == null)
             {
-                return NotFound();
+                return Content(HttpStatusCode.NotFound, string.Format("Employee with id {0} does not exist", id));
             }
-
+            try
+            { 
+             // set IsActive to false to remove Employee
+            employee.IsActive = false;
             db.Employees.Remove(employee);
             db.SaveChanges();
 
             return Ok(employee);
+            }
+            catch(Exception ex)
+            {
+                return Content(HttpStatusCode.BadRequest, ex.Message);
+            }
         }
 
         protected override void Dispose(bool disposing)

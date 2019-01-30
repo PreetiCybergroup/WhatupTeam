@@ -10,7 +10,7 @@ using System.Web.Http;
 using System.Web.Http.Description;
 using WhatupTeam.Models.DatabaseAccess;
 using WhatupTeam.Models.Entities;
-using static WhatupTeam.Models.Entities.ActionResponseEnum;
+
 
 namespace WhatupTeam.Controllers.WebAPI
 {
@@ -21,7 +21,7 @@ namespace WhatupTeam.Controllers.WebAPI
         // GET: api/Companies
         public IQueryable<Company> GetCompany()
         {
-            return db.Company;
+            return db.Company.Where(_company => _company.IsActive == true);
         }
 
         // GET: api/Companies/5
@@ -31,7 +31,7 @@ namespace WhatupTeam.Controllers.WebAPI
             Company company = db.Company.Find(id);
             if (company == null)
             {
-                return NotFound();
+                return Content(HttpStatusCode.NotFound, string.Format("Company with id {0} does not exist",id));
             }
 
             return Ok(company);
@@ -39,16 +39,16 @@ namespace WhatupTeam.Controllers.WebAPI
 
         // PUT: api/Companies/5
         [ResponseType(typeof(void))]
-        public ActionResponse PutCompany(int id, Company company)
+        public IHttpActionResult PutCompany(int id, Company company)
         {
             if (!ModelState.IsValid)
             {
-                return ActionResponse.BadRequest;
+                return BadRequest(ModelState);
             }
 
             if (id != company.CompanyID)
             {
-                return ActionResponse.BadRequest;
+                return BadRequest();
             }
 
             db.Entry(company).State = EntityState.Modified;
@@ -56,59 +56,73 @@ namespace WhatupTeam.Controllers.WebAPI
             try
             {
                 db.SaveChanges();
-                return ApiResponse.getResponse("Companies") ? ActionResponse.Update : ActionResponse.Error;
+                return Ok(string.Format("Company details with id {0} has been modified", id));
             }
-            catch (DbUpdateConcurrencyException)
+            catch (DbUpdateConcurrencyException exception)
             {
                 if (!CompanyExists(id))
                 {
-                    return ActionResponse.NotFound;
+                    return Content(HttpStatusCode.NotFound, string.Format("Company with id {0} does not exist", id));
                 }
                 else
                 {
-                    throw;
+                    return Content(HttpStatusCode.NoContent, exception.Message);
                 }
             }
         }
 
         // POST: api/Companies
         [ResponseType(typeof(Company))]
-        public ActionResponse PostCompany(Company company)
+        public IHttpActionResult PostCompany(Company company)
         {
             if (!ModelState.IsValid)
             {
-               return ActionResponse.BadRequest;
+               return BadRequest(ModelState);
             }
-
+            try
+            { 
             if (!CompanyExists(company.Name, company.Location))
             {
                 db.Company.Add(company);
                 db.SaveChanges();
 
-                return ApiResponse.getResponse("Companies") ? ActionResponse.AddNew : ActionResponse.Error;
+                return CreatedAtRoute("DefaultApi", new { id = company.CompanyID }, company);
             }
             else
             {
-              return ActionResponse.Error;
+                return Content(HttpStatusCode.NoContent, "Company already exist");
+            }
+            }
+            catch(Exception ex)
+            {
+                return Content(HttpStatusCode.BadRequest, ex.Message);
+
             }
         }
 
         // DELETE: api/Companies/5
         [ResponseType(typeof(Company))]
-        public ActionResponse DeleteCompany(int id)
+        public IHttpActionResult DeleteCompany(int id)
         {
+             
             Company company = db.Company.Find(id);
             if (company == null)
             {
-                return ActionResponse.NotFound;
+                return Content(HttpStatusCode.NotFound, string.Format("Company with id {0} does not exist", id));
             }
+            try
+            {
+             //Set IsActive to false if Company is deactivated
+              company.IsActive = false;
+              db.Entry(company).State = EntityState.Modified;
+              db.SaveChanges();
 
-            //Set IsActive to false if Company is deactivated
-            company.IsActive = false;
-            db.Entry(company).State = EntityState.Modified;
-            db.SaveChanges();
-
-            return ApiResponse.getResponse("Companies") ? ActionResponse.Delete : ActionResponse.Error;
+              return Ok(string.Format("Company with id {0} has been removed",id));
+            }
+            catch(Exception ex)
+            {
+                return Content(HttpStatusCode.BadRequest, ex.Message);
+            }
         }
 
         protected override void Dispose(bool disposing)
